@@ -82,7 +82,7 @@ def install(
     return
 
   url = url_base + file_name
-  python_version = "{0}.{1}.{2}".format(*sys.version_info)
+  python_version = "3.10"
 
   logger.info("python version: {}".format(python_version))
 
