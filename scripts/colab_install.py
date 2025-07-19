@@ -63,7 +63,7 @@ def install(
   python_path = os.path.join(
       conda_path,
       "lib",
-      "python{0}.{1}".format(*sys.version_info),
+      "python3.10",
       "site-packages",
   )
 
