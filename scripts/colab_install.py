@@ -18,52 +18,32 @@ default_channels = [
     "conda-forge",
 ]
 default_packages = [
-    "openmm",
-    "pdbfixer",
+    "openmm=8.0.0",
+    "pdbfixer=1.9.0",
 ]
 
 
 def install(
     chunk_size=4096,
     file_name="Miniconda3-latest-Linux-x86_64.sh",
-    url_base="https://repo.continuum.io/miniconda/",
+    url_base="https://repo.anaconda.com/miniconda/",
     conda_path=os.path.expanduser(os.path.join("~", "miniconda")),
     add_python_path=True,
-    # default channels are "conda-forge" and "omnia"
     additional_channels=[],
-    # default packages are "rdkit", "openmm" and "pdbfixer"
     additional_packages=[],
 ):
   """Install conda packages on Google Colab
 
-    For GPU/CPU notebook
-    ```
+    Example:
     import conda_installer
     conda_installer.install()
-    ```
-
-    If you want to add other packages, you can use additional_conda_channels and 
-    additional_conda_package arguments. Please see the example.
-    ```
-    import conda_installer
-    conda_installer.install(
-      additional_conda_channels=[]
-      additional_conda_packages=["mdtraj", "networkx"]
-    )
-
-    // add channel
-    import conda_installer
-    conda_installer.install(
-      additional_conda_channels=["dglteam"]
-      additional_conda_packages=["dgl-cuda10.1"]
-    )
-    ```
   """
 
+  python_version = "3.10"
   python_path = os.path.join(
       conda_path,
       "lib",
-      "python3.10",
+      f"python{python_version}",
       "site-packages",
   )
 
@@ -71,19 +51,17 @@ def install(
     logger.info("add {} to PYTHONPATH".format(python_path))
     sys.path.append(python_path)
 
-  is_installed = []
   packages = list(set(default_packages + additional_packages))
+  is_installed = []
   for package in packages:
-    package = "simtk" if package == "openmm" else package
-    is_installed.append(os.path.isdir(os.path.join(python_path, package)))
+    package_dir = "simtk" if package.startswith("openmm") else package.split("=")[0]
+    is_installed.append(os.path.isdir(os.path.join(python_path, package_dir)))
 
   if all(is_installed):
     logger.info("all packages are already installed")
     return
 
   url = url_base + file_name
-  python_version = "3.10"
-
   logger.info("python version: {}".format(python_version))
 
   if os.path.isdir(conda_path):
@@ -105,19 +83,25 @@ def install(
   subprocess.check_call(["bash", file_name, "-b", "-p", conda_path])
   logger.info('done')
 
+  logger.info("configuring conda-forge only")
+  subprocess.check_call([
+      os.path.join(conda_path, "bin", "conda"), "config", "--remove-key", "channels"
+  ])
+  subprocess.check_call([
+      os.path.join(conda_path, "bin", "conda"), "config", "--add", "channels", "conda-forge"
+  ])
+  subprocess.check_call([
+      os.path.join(conda_path, "bin", "conda"), "config", "--set", "channel_priority", "strict"
+  ])
+
   logger.info("installing openmm, pdbfixer")
-  channels = list(set(default_channels + additional_channels))
-  for channel in channels:
-    subprocess.check_call([
-        os.path.join(conda_path, "bin", "conda"), "config", "--append",
-        "channels", channel
-    ])
-    logger.info("added {} to channels".format(channel))
   subprocess.check_call([
       os.path.join(conda_path, "bin", "conda"),
       "install",
       "--yes",
-      "python=={}".format(python_version),
+      "--override-channels",
+      "-c", "conda-forge",
+      f"python={python_version}",
       *packages,
   ])
   logger.info("done")
